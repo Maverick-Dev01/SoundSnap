@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import ttk
+from src.player import AudioPlayerWindow
 from src.search import search_youtube
 
 class MainUI(ctk.CTk):
@@ -86,4 +87,15 @@ class MainUI(ctk.CTk):
 
         # Layout
         self.tree.pack(side="left", fill="both", expand=True)
+        self.tree.bind("<Double-1>", self.on_double_click)
         vsb.pack(side="right", fill="y")
+
+    def on_double_click(self, event):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+
+        values = self.tree.item(selected_item[0], "values")
+        title, url = values[0], values[1]
+        AudioPlayerWindow(self, url, title=title)
+
