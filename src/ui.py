@@ -1,51 +1,89 @@
-# src/ui.py
-# Interfaz principal de la aplicación: muestra el título, buscador, y prepara todo para los resultados.
-
 import customtkinter as ctk
+from tkinter import ttk
 from src.search import search_youtube
 
-class MainUI(ctk.CTk):  # Heredamos de CTk (ventana principal)
+class MainUI(ctk.CTk):
     def __init__(self):
-        super().__init__()  # Inicializa la ventana
-
-        # Configuración general de la ventana
+        super().__init__()
         self.title("🎧 SoundSnap V2")
         self.geometry("950x600")
         self.resizable(False, False)
 
-        # Variables de estado (se usan para obtener texto del usuario)
-        self.search_var = ctk.StringVar()
+        # 🌙 Estilo para Treeview (modo oscuro)
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("Treeview",
+                        background="#1e1e1e",
+                        foreground="white",
+                        fieldbackground="#1e1e1e",
+                        font=("Segoe UI", 10),
+                        rowheight=28)
+        style.map('Treeview',
+                  background=[('selected', '#3a7ebf')],
+                  foreground=[('selected', 'white')])
+        style.configure("Treeview.Heading",
+                        font=('Segoe UI', 11, 'bold'),
+                        background="#292929",
+                        foreground="white")
 
-        self.build_ui()  # Llama al método que construye los elementos visuales
+        # Variables
+        self.search_var = ctk.StringVar()
+        self.results_frame = None
+        self.tree = None
+
+        self.build_ui()
 
     def build_ui(self):
-        # Título
+        # Título principal
         title = ctk.CTkLabel(self, text="SoundSnap 🎵", font=("Segoe UI", 24, "bold"))
         title.pack(pady=20)
 
-        # Frame del buscador
+        # Sección del buscador
         search_frame = ctk.CTkFrame(self)
         search_frame.pack(pady=10)
 
-        # Campo de entrada de texto para buscar canciones o artistas
         search_entry = ctk.CTkEntry(search_frame, placeholder_text="Buscar canción, artista o álbum", width=400, textvariable=self.search_var)
         search_entry.pack(side="left", padx=10)
+        search_entry.bind("<Return>", lambda event: self.search_music())  # Hacer búsqueda al presionar Enter
 
-        # Botón para lanzar la búsqueda
         search_btn = ctk.CTkButton(search_frame, text="Buscar", command=self.search_music)
         search_btn.pack(side="left")
 
     def search_music(self):
-        """
-        Esta función se ejecuta cuando el usuario hace clic en 'Buscar'.
-        Toma el texto ingresado, lo envía a YouTube a través de yt_dlp, y muestra resultados en consola (por ahora).
-        """
-        query = self.search_var.get()  # Obtiene lo que el usuario escribió
+        query = self.search_var.get()
         if not query:
             print("⚠️ Campo de búsqueda vacío.")
             return
 
-        results = search_youtube(query)  # Llama a la función de búsqueda
-        print(f"🔍 Resultados para '{query}':")
-        for r in results:
-            print(f"🎵 {r['title']} → {r['url']}")  # Muestra título y enlace
+        results = search_youtube(query)
+
+        # Limpiar resultados anteriores
+        if self.results_frame:
+            self.results_frame.destroy()
+
+        # Crear nuevo contenedor de resultados
+        self.results_frame = ctk.CTkFrame(self)
+        self.results_frame.pack(pady=20, fill="both", expand=True)
+
+        # Subframe para tabla y scrollbar
+        table_frame = ctk.CTkFrame(self.results_frame)
+        table_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Tabla (Treeview)
+        self.tree = ttk.Treeview(table_frame, columns=("Título", "Enlace"), show="headings")
+        self.tree.heading("Título", text="Título")
+        self.tree.heading("Enlace", text="Enlace")
+        self.tree.column("Título", width=500)
+        self.tree.column("Enlace", width=400)
+
+        # Agregar resultados a la tabla
+        for result in results:
+            self.tree.insert("", "end", values=(result["title"], result["url"]))
+
+        # Scrollbar vertical única
+        vsb = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+
+        # Layout
+        self.tree.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="right", fill="y")
